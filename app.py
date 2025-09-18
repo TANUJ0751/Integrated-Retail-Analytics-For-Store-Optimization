@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
@@ -36,17 +37,18 @@ dept_id = st.sidebar.selectbox("Select Department", sorted(df['Dept'].unique()))
 st.header("Exploratory Data Analysis")
 
 col1, col2 = st.columns(2)
+
 with col1:
     st.subheader("Weekly Sales Distribution")
-    fig, ax = plt.subplots()
-    sns.histplot(df['Weekly_Sales'], bins=50, kde=True, ax=ax)
-    st.pyplot(fig)
+    fig = px.histogram(df, x="Weekly_Sales", nbins=50, marginal="box", title="Weekly Sales Distribution")
+    st.plotly_chart(fig, use_container_width=True)
 
 with col2:
     st.subheader("Average Weekly Sales by Store Type")
-    fig, ax = plt.subplots()
-    sns.barplot(x="Type", y="Weekly_Sales", data=df, ax=ax)
-    st.pyplot(fig)
+    fig = px.bar(df, x="Type", y="Weekly_Sales", 
+                 title="Average Weekly Sales by Store Type",
+                 color="Type", barmode="group")
+    st.plotly_chart(fig, use_container_width=True)
 
 # ======================
 # 2. Anomaly Detection
@@ -58,6 +60,10 @@ anomalies = df[abs(df['Sales_Zscore']) > 3]
 st.write(f"Detected anomalies: {anomalies.shape[0]}")
 st.dataframe(anomalies.head())
 
+fig = px.scatter(anomalies, x="Date", y="Weekly_Sales", color="Store",
+                 title="Anomaly Points in Sales")
+st.plotly_chart(fig, use_container_width=True)
+
 # ======================
 # 3. Time-Series Analysis
 # ======================
@@ -67,8 +73,14 @@ ts = ts.resample("W").sum().fillna(method="ffill")
 
 if len(ts) > 52:
     result = seasonal_decompose(ts, model="additive", period=52)
-    fig = result.plot()
-    st.pyplot(fig)
+    
+    # Interactive decomposition plots
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=ts.index, y=result.trend, mode="lines", name="Trend"))
+    fig.add_trace(go.Scatter(x=ts.index, y=result.seasonal, mode="lines", name="Seasonal"))
+    fig.add_trace(go.Scatter(x=ts.index, y=result.resid, mode="lines", name="Residual"))
+    fig.update_layout(title="Seasonal Decomposition", xaxis_title="Date")
+    st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("Not enough data for seasonal decomposition (need > 52 weeks).")
 
@@ -92,9 +104,10 @@ store_group['Cluster'] = kmeans.fit_predict(scaled)
 
 st.write(f"Silhouette Score: {silhouette_score(scaled, store_group['Cluster']):.2f}")
 
-fig, ax = plt.subplots()
-sns.scatterplot(x="Size", y="Weekly_Sales", hue="Cluster", data=store_group, palette="deep", ax=ax)
-st.pyplot(fig)
+fig = px.scatter(store_group, x="Size", y="Weekly_Sales", 
+                 color="Cluster", hover_data=["Store"],
+                 title="Store Clusters")
+st.plotly_chart(fig, use_container_width=True)
 
 # ======================
 # 5. Demand Forecasting
@@ -108,11 +121,11 @@ if len(ts) > 52:
     fit = model.fit()
     forecast = fit.forecast(20)
 
-    fig, ax = plt.subplots(figsize=(10,5))
-    ax.plot(ts, label="Actual")
-    ax.plot(forecast, label="Forecast", linestyle="--")
-    ax.legend()
-    st.pyplot(fig)
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=ts.index, y=ts, mode="lines", name="Actual"))
+    fig.add_trace(go.Scatter(x=forecast.index, y=forecast, mode="lines", name="Forecast"))
+    fig.update_layout(title="Demand Forecasting - Store & Dept", xaxis_title="Date", yaxis_title="Sales")
+    st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("Not enough data for forecasting (need > 52 weeks).")
 
