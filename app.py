@@ -23,7 +23,7 @@ def load_data():
 df = load_data()
 
 st.title("📊 Integrated Retail Analytics Dashboard")
-
+st.write("Created By Tanuj Jain")
 # ======================
 # Sidebar Filters
 # ======================
